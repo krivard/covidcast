@@ -38,8 +38,9 @@ get_data = function(sources, signals, dates) {
 }
 
 # Fetch the following sources and signals
-sources = c("doctor-visits", "fb-survey", "google-survey", "ght")
-signals = c("smoothed_cli", "smoothed_cli", "smoothed_cli", "smoothed_search")
+sources = c("doctor-visits", "fb-survey", "fb-survey", "google-survey", "ght")
+signals = c("smoothed_cli", "smoothed_cli", "smoothed_community", "smoothed_cli", "smoothed_search")
+titles = paste(sources,gsub(".*_","",signals))
 dates = Epidata$range("20200411", "20200417") # Format is YYYYMMDD
 signal_dfs = get_data(sources, signals, dates)
 
@@ -54,7 +55,7 @@ Compute rank correlations, county level
 library(dplyr)
 
 # Handy function for plotting rank correlation of x and y, filtering over various population thresholds
-cor_plot = function(x, y, pop_df, min_obs = 100, main=NULL) {
+cor_plot = function(x, y, pop_df, min_obs = 100, main=NULL, ylim=c(0,1)) {
   # Join by geo identifier
   z = inner_join(x, y, by="geo_value")
     
@@ -69,8 +70,11 @@ cor_plot = function(x, y, pop_df, min_obs = 100, main=NULL) {
     cor_vec[i] = cor(z$value.x[i:n], z$value.y[i:n], method="spearman")
   }
   
-  plot(pop_vec, cor_vec, type="l", log="x", main=main,
+  if (diff(ylim)==0) ylim=range(cor_vec)
+  plot(range(pop_vec), ylim, type="n", 
+       log="x", main=main,
        xlab="Population threshold", ylab="Rank correlation")
+  lines(pop_vec, cor_vec, type='l')
   axis(3, at=pop_vec, labels=n:(min_obs+1), cex.axis=0.8)
   invisible(list(pop_vec=pop_vec, cor_vec=cor_vec))
 }
@@ -91,15 +95,17 @@ x = cases %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_county) {
-  # Average over available weeks within each county 
-  y = signal_dfs[[i]] %>% 
-    filter(is_county) %>%
-    group_by(geo_value) %>%
-    summarize(value = mean(value, na.rm=TRUE))
-    
-  # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, county_pop, main=sources[i])
+for (ylim in c(0,1)) {
+  for (i in inds_county) {
+    # Average over available weeks within each county 
+    y = signal_dfs[[i]] %>% 
+      filter(is_county) %>%
+      group_by(geo_value) %>%
+      summarize(value = mean(value, na.rm=TRUE))
+      
+    # Compute and plot rank correlations by pop threshold
+    cor_plot(x, y, county_pop, main=titles[i], ylim=c(0,ylim))
+  }
 }
 ```
 
@@ -123,7 +129,8 @@ x = cases %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_msa) {
+for (ylim in c(0,1)) {
+  for (i in inds_msa) {
   # Average over available weeks within each MSA 
   y = signal_dfs[[i]] %>% 
     filter(!is_county) %>%
@@ -131,7 +138,8 @@ for (i in inds_msa) {
     summarize(value = mean(value, na.rm=TRUE))
     
   # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, msa_pop, main=sources[i])
+  cor_plot(x, y, msa_pop, main=titles[i],ylim=c(0,ylim))
+  }
 }
 ```
 
@@ -150,7 +158,8 @@ x = cases_ahead %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_county) {
+for (ylim in c(0,1)) {
+  for (i in inds_county) {
 # Average over available weeks per county
   y = signal_dfs[[i]] %>% 
     filter(is_county) %>%
@@ -158,7 +167,8 @@ for (i in inds_county) {
     summarize(value = mean(value, na.rm=TRUE))
     
   # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, county_pop, main=sources[i])
+  cor_plot(x, y, county_pop, main=titles[i], ylim=c(0,ylim))
+  }
 }
 
 par(mfrow=c(1, N_msa), mar=c(4.5, 4.5, 5.5, 0.5))
@@ -169,7 +179,8 @@ x = cases_ahead %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_msa) {
+for (ylim in c(0,1)) {
+  for (i in inds_msa) {
   # Average over available weeks per MSA
   y = signal_dfs[[i]] %>% 
     filter(!is_county) %>%
@@ -177,7 +188,8 @@ for (i in inds_msa) {
     summarize(value = mean(value, na.rm=TRUE))
     
   # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, msa_pop, main=sources[i])
+  cor_plot(x, y, msa_pop, main=titles[i],ylim=c(0,ylim))
+  }
 }
 ```
 
@@ -196,7 +208,8 @@ x = deaths_ahead %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_county) {
+for (ylim in c(0,1)) {
+  for (i in inds_county) {
 # Average over available weeks per county
   y = signal_dfs[[i]] %>% 
     filter(is_county) %>%
@@ -204,7 +217,8 @@ for (i in inds_county) {
     summarize(value = mean(value, na.rm=TRUE))
     
   # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, county_pop, main=sources[i])
+  cor_plot(x, y, county_pop, main=titles[i],ylim=c(0,ylim))
+  }
 }
 
 par(mfrow=c(1, N_msa), mar=c(4.5, 4.5, 5.5, 0.5))
@@ -215,7 +229,8 @@ x = deaths_ahead %>%
   group_by(geo_value) %>%
   summarize(value = mean(value, na.rm=TRUE))
 
-for (i in inds_msa) {
+for (ylim in c(0,1)) {
+  for (i in inds_msa) {
   # Average over available weeks per MSA
   y = signal_dfs[[i]] %>% 
     filter(!is_county) %>%
@@ -223,6 +238,7 @@ for (i in inds_msa) {
     summarize(value = mean(value, na.rm=TRUE))
     
   # Compute and plot rank correlations by pop threshold
-  cor_plot(x, y, msa_pop, main=sources[i])
+  cor_plot(x, y, msa_pop, main=titles[i],ylim=c(0,ylim))
+  }
 }
 ```
